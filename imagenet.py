@@ -98,16 +98,16 @@ def whitebox(writer, model, policy, optimizer, criterion):
         schedule(optimizer, epoch)
         whitebox_train(policy, model, criterion, optimizer)
         # validation phase
-        val_acc, val_loss = val(policy, model, criterion)
-        if val_acc > best_val_acc:
-            best_weight = policy.state_dict()
-            best_val_acc = val_acc
-            torch.save('checkpoints/whitebox.pth.tar', best_weight)
-        writer.add_scalar(tag='val acc', scalar_value=val_acc, global_step=epoch + 1)
-        writer.add_scalar(tag='val loss', scalar_value=val_loss, global_step=epoch + 1)
+    #     val_acc, val_loss = val(policy, model, criterion)
+    #     if val_acc > best_val_acc:
+    #         best_weight = policy.state_dict()
+    #         best_val_acc = val_acc
+    #         torch.save('checkpoints/whitebox.pth.tar', best_weight)
+    #     writer.add_scalar(tag='val acc', scalar_value=val_acc, global_step=epoch + 1)
+    #     writer.add_scalar(tag='val loss', scalar_value=val_loss, global_step=epoch + 1)
 
-    # test
-    policy.load_state_dict(best_weight)
+    # # test
+    # policy.load_state_dict(best_weight)
     test(policy, model, criterion, writer)
 
 

@@ -17,9 +17,13 @@ normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                  std=[0.229, 0.224, 0.225])
 
 trainset = datasets.ImageFolder(
-    os.path.join(imagenet_dir, 'train'),
+    # os.path.join(imagenet_dir, 'train'),
+    imagenet_dir,
     transform=transform_aug
 )
+
+train_size = int(0.01 * len(trainset))
+trainset, _ = random_split(trainset, [train_size, len(trainset) - trainset])
 
 transform_val = transforms.Compose([
     transforms.Resize(256),
@@ -27,10 +31,10 @@ transform_val = transforms.Compose([
     transforms.ToTensor(),
 ])
 
-clean_valset = datasets.ImageFolder(
-    os.path.join(imagenet_dir, 'val'),
-    transform=transform_aug
-)
+# clean_valset = datasets.ImageFolder(
+#     os.path.join(imagenet_dir, 'val'),
+#     transform=transform_aug
+# )
 
 
 def get_train_loader(batch_size):
