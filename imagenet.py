@@ -6,7 +6,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--lr', '-l', default=1e-8, type=float)
-parser.add_argument('--batchsize', '-b', default=256, type=int)
+parser.add_argument('--batch_size', '-b', default=256, type=int)
 parser.add_argument('--model', '-m', default='resnet50')
 parser.add_argument('--policy', '-p', default='efficientnet')
 parser.add_argument('--epochs', '-e', default=50, type=int)
