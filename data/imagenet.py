@@ -23,7 +23,7 @@ trainset = datasets.ImageFolder(
 )
 
 train_size = int(0.01 * len(trainset))
-trainset, _ = random_split(trainset, [train_size, len(trainset) - trainset])
+trainset, _ = random_split(trainset, [train_size, len(trainset) - train_size])
 
 transform_val = transforms.Compose([
     transforms.Resize(256),
