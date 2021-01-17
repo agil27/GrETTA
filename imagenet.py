@@ -8,10 +8,11 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--lr', '-l', default=1e-8, type=float)
 parser.add_argument('--batchsize', '-b', default=256, type=int)
 parser.add_argument('--model', '-m', default='resnet50')
-parser.add_argument('--policy', '-p', default='efficient')
+parser.add_argument('--policy', '-p', default='efficientnet')
 parser.add_argument('--epochs', '-e', default=50, type=int)
 parser.add_argument('--traintype', '-t', default='oracle')
 parser.add_argument('--evaluation', '-v', default='clean')
+parser.add_argument('--samples', '-s', default=12, type=int)
 args = parser.parse_args()
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -194,7 +195,7 @@ if args.traintype == 'oracle':
     whitebox(writer, model, policy, optimizer, criterion)
 elif args.traintype == 'vanilla':
     writer, model, policy, optimizer, criterion = get_init(comment='vanilla_train')
-    blackbox(writer, model, policy, optimizer, criterion, num_samples=args.num_samples, guided=False)
+    blackbox(writer, model, policy, optimizer, criterion, num_samples=args.samples, guided=False)
 else:
     writer, model, policy, optimizer, criterion = get_init(comment='guided_train')
-    blackbox(writer, model, policy, optimizer, criterion, num_samples=args.num_samples, guided=True)
+    blackbox(writer, model, policy, optimizer, criterion, num_samples=args.samples, guided=True)
