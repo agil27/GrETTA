@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader, random_split
 import os
 
 # Define Imagenet Dataset
-imagenet_dir = '/n/pfister_lab2/Lab/vcg_natural/'
+imagenet_dir = '/n/pfister_lab2/Lab/vcg_natural/imagenet'
 imagenetc_dir = '/n/pfister_lab2/Lab/vcg_natural/imagenet-c'
 transform_aug = transforms.Compose([
     transforms.RandomAffine(degrees=[-15.0, 15.0], translate=[0.0, 0.2], scale=[0.8, 1.2]),
