@@ -56,20 +56,20 @@ def get_val_loader(batch_size):
     )
 
 
-clean_testset = datasets.ImageFolder(
-    os.path.join(imagenet_dir, 'test'),
-    transform_val
-)
+# clean_testset = datasets.ImageFolder(
+#     os.path.join(imagenet_dir, 'test'),
+#     transform_val
+# )
 
 
-def get_clean_test_loader(batch_size):
-    return DataLoader(
-        clean_testset,
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=8,
-        pin_memory=True
-    )
+# def get_clean_test_loader(batch_size):
+#     return DataLoader(
+#         clean_testset,
+#         batch_size=batch_size,
+#         shuffle=False,
+#         num_workers=8,
+#         pin_memory=True
+#     )
 
 
 CORRUPTIONS = [
