@@ -1,29 +1,37 @@
-import torch.nn as nn
 from tensorboardX import SummaryWriter
 from network.blackbox import *
 from network.policy import *
-from gretta.optimizer import *
 from gretta.metric import *
+import argparse
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--lr', '-l', default=1e-8, type=float)
+parser.add_argument('--batchsize', '-b', default=256, type=int)
+parser.add_argument('--model', '-m', default='resnet50')
+parser.add_argument('--policy', '-p', default='efficient')
+parser.add_argument('--epochs', '-e', default=50, type=int)
+parser.add_argument('--traintype', '-t', default='oracle')
+parser.add_argument('--evaluation', '-v', default='clean')
+args = parser.parse_args()
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 num_levels = len(transform_list)
-num_epochs = 50
-lr = 1e-8
+val_loader = get_val_loader(args.batch_size)
+train_loader = get_train_loader(args.batch_size)
 
 
 def schedule(optimizer, epoch):
-    b = batch_size / 256.0
-    k = num_epochs // 3
+    b = args.batch_size / 256.0
+    k = args.num_epochs // 3
     if epoch < k:
         m = 1
     elif epoch < 2 * k:
         m = 0.1
     else:
         m = 0.01
-    lr_modified = lr * m * b
+    lr = args.lr * m * b
     for param_group in optimizer.param_groups:
-        param_group['lr'] = lr_modified
+        param_group['lr'] = lr
 
 
 def val(policy, model, criterion):
@@ -51,6 +59,18 @@ def val(policy, model, criterion):
     return val_acc, val_loss
 
 
+def test(policy, model, criterion, writer):
+    assert args.evaluation in ['clean', 'corrupt']
+    if args.evaluation == 'clean':
+        test_loss, test_acc = test_clean(policy, model, criterion, args.batch_size)
+        writer.add_text(tag='test acc', text_string='%.6f%%' % (test_acc * 100.0,))
+        writer.add_text(tag='test loss', text_string='%.8f' % test_loss)
+    else:
+        test_accs = test_corrupt(policy, model, criterion, args.batch_size)
+        for c in test_accs.keys():
+            writer.add_text(tag='test acc %s' % c, text_string='%.6f%%' % (test_accs[c] * 100.0,))
+
+
 # gradient oracle / whitebox train
 def whitebox_train(policy, model, criterion, optimizer):
     policy.train()
@@ -69,20 +89,10 @@ def whitebox_train(policy, model, criterion, optimizer):
     return policy
 
 
-def whitebox():
-    writer = SummaryWriter(comment='gradient_oracle')
-    model = resnet50_raw().to(device)
-    model = nn.DataParallel(model)
-    model.eval()
-    policy = resnet18_policy(num_levels).to(device)
-    policy.fc.weight.data.fill_(0)
-    policy.fc.bias.data.fill_(0)
-    optimizer = torch.optim.RMSprop(policy.parameters(), lr=lr)
-    criterion = nn.CrossEntropyLoss()
-
+def whitebox(writer, model, policy, optimizer, criterion):
     best_val_acc = 0.0
     best_weight = policy.state_dict()
-    for epoch in range(num_epochs):
+    for epoch in range(args.num_epochs):
         # train phase
         schedule(optimizer, epoch)
         whitebox_train(policy, model, criterion, optimizer)
@@ -95,11 +105,9 @@ def whitebox():
         writer.add_scalar(tag='val acc', scalar_value=val_acc, global_step=epoch + 1)
         writer.add_scalar(tag='val loss', scalar_value=val_loss, global_step=epoch + 1)
 
-    # test on clean set
+    # test
     policy.load_state_dict(best_weight)
-    test_loss, test_acc = test_clean(policy, model, criterion)
-    writer.add_text(tag='test acc', text_string='%.6f%%' % (test_acc * 100.0, ))
-    writer.add_text(tag='test loss', text_string='%.8f' % test_loss)
+    test(policy, model, criterion, writer)
 
 
 # black_box
@@ -111,7 +119,7 @@ def blackbox_train(policy, model, criterion, optimizer, es, num_samples, student
         levels = policy(inputs)
         levels = torch.sigmoid(levels)
         inputs_rep = inputs.repeat((num_samples, 1, 1, 1))
-        targets_rep = targets.repeat((num_samples, ))
+        targets_rep = targets.repeat((num_samples,))
         func = TTATarget(model, inputs_rep, targets_rep, criterion, normalize)
         if student is None:
             grad = es.step(levels, func)
@@ -123,17 +131,7 @@ def blackbox_train(policy, model, criterion, optimizer, es, num_samples, student
         optimizer.step()
 
 
-def blackbox(guided=False):
-    writer = SummaryWriter(comment='vanilla_train')
-    model = resnet50_raw().to(device)
-    model = nn.DataParallel(model)
-    model.eval()
-    policy = resnet18_policy(num_levels).to(device)
-    policy.fc.weight.data.fill_(0)
-    policy.fc.bias.data.fill_(0)
-    optimizer = torch.optim.RMSprop(policy.parameters(), lr=lr)
-    criterion = nn.CrossEntropyLoss()
-    num_samples = 12
+def blackbox(writer, model, policy, optimizer, criterion, num_samples=12, guided=False):
     if guided:
         es = SurrogateES(n=num_levels, num_samples=num_samples)
         student = resnet18_raw()
@@ -143,7 +141,7 @@ def blackbox(guided=False):
 
     best_val_acc = 0.0
     best_weight = policy.state_dict()
-    for epoch in range(num_epochs):
+    for epoch in range(args.num_epochs):
         # train phase
         schedule(optimizer, epoch)
         blackbox_train(policy, model, criterion, optimizer, es, num_samples, student)
@@ -156,16 +154,47 @@ def blackbox(guided=False):
         writer.add_scalar(tag='val acc', scalar_value=val_acc, global_step=epoch + 1)
         writer.add_scalar(tag='val loss', scalar_value=val_loss, global_step=epoch + 1)
 
-    # test on clean set
+    # test
     policy.load_state_dict(best_weight)
-    test_loss, test_acc = test_clean(policy, model, criterion)
-    writer.add_text(tag='test acc', text_string='%.6f%%' % (test_acc * 100.0,))
-    writer.add_text(tag='test loss', text_string='%.8f' % test_loss)
+    test(policy, model, criterion, writer)
 
 
+def get_init(comment):
+    writer = SummaryWriter(comment=comment)
+
+    assert args.model in ['resnet50', 'augmix']
+    if args.model == 'resnet50':
+        model = resnet50_raw().to(device)
+    else:
+        model = resnet50_augmix().to(device)
+
+    model = nn.DataParallel(model)
+    model.eval()
+
+    assert args.policy in ['resnet18', 'efficientnet']
+    if args.policy == 'resnet18':
+        policy = resnet18_policy(num_levels).to(device)
+        policy.fc.weight.data.fill_(0)
+        policy.fc.bias.data.fill_(0)
+    else:
+        policy = effnet_b0(num_levels).to(device)
+        policy._fc.weight.data.fill_(0)
+        policy._fc.bias.data.fill_(0)
+
+    optimizer = torch.optim.RMSprop(policy.parameters(), lr=args.lr)
+    criterion = nn.CrossEntropyLoss()
+    return writer, model, policy, optimizer, criterion
 
 
+# main proc
+assert args.traintype in ['oracle', 'vanilla', 'guided']
 
-
-
-
+if args.traintype == 'oracle':
+    writer, model, policy, optimizer, criterion = get_init(comment='gradient_oracle')
+    whitebox(writer, model, policy, optimizer, criterion)
+elif args.traintype == 'vanilla':
+    writer, model, policy, optimizer, criterion = get_init(comment='vanilla_train')
+    blackbox(writer, model, policy, optimizer, criterion, num_samples=args.num_samples, guided=False)
+else:
+    writer, model, policy, optimizer, criterion = get_init(comment='guided_train')
+    blackbox(writer, model, policy, optimizer, criterion, num_samples=args.num_samples, guided=True)

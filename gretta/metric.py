@@ -1,5 +1,4 @@
 from data.imagenet import *
-from gretta.augmentations import *
 from gretta.optimizer import *
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -28,15 +27,16 @@ def test(policy, model, criterion, test_loader):
     return test_loss, test_acc
 
 
-def test_clean(policy, model, criterion):
-    return test(policy, model, criterion, clean_test_loader)
+def test_clean(policy, model, criterion, batch_size):
+    test_loader = get_clean_test_loader(batch_size)
+    return test(policy, model, criterion, test_loader)
 
 
-def test_corrupt(policy, model, criterion):
+def test_corrupt(policy, model, criterion, batch_size):
     accs = {}
     for c in CORRUPTIONS:
         for s in range(1, 6):
-            loader = corrupt_loader(c, s)
+            loader = get_corrupt_loader(c, s, batch_size)
             loss, acc = test(policy, model, criterion, loader)
             if c in accs:
                 accs[c].append(acc)

@@ -3,10 +3,6 @@ from torchvision import transforms
 from torch.utils.data import DataLoader, random_split
 import os
 
-
-batch_size = 256
-
-
 # Define Imagenet Dataset
 imagenet_dir = '/n/pfister_lab2/Lab/vcg_natural/'
 imagenetc_dir = '/n/pfister_lab2/Lab/vcg_natural/imagenet-c'
@@ -36,33 +32,40 @@ clean_valset = datasets.ImageFolder(
     transform=transform_aug
 )
 
-train_loader = DataLoader(
-    trainset,
-    batch_size=batch_size,
-    shuffle=True,
-    num_workers=8,
-    pin_memory=True
-)
 
-val_loader = DataLoader(
-    clean_valset,
-    batch_size=batch_size,
-    shuffle=False,
-    num_workers=8
-)
+def get_train_loader(batch_size):
+    return DataLoader(
+        trainset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=8,
+        pin_memory=True
+    )
+
+
+def get_val_loader(batch_size):
+    return DataLoader(
+        clean_valset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=8
+    )
+
 
 clean_testset = datasets.ImageFolder(
     os.path.join(imagenet_dir, 'test'),
     transform_val
 )
 
-clean_test_loader = DataLoader(
-    clean_testset,
-    batch_size=batch_size,
-    shuffle=False,
-    num_workers=8,
-    pin_memory=True
-)
+
+def get_clean_test_loader(batch_size):
+    return DataLoader(
+        clean_testset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=8,
+        pin_memory=True
+    )
 
 
 CORRUPTIONS = [
@@ -73,7 +76,7 @@ CORRUPTIONS = [
 ]
 
 
-def corrupt_loader(c, s):
+def get_corrupt_loader(c, s, batch_size):
     testdir = os.path.join(imagenetc_dir, c, str(s))
     testset = datasets.ImageFolder(testdir, transform_val)
     test_loader = DataLoader(

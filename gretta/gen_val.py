@@ -49,5 +49,3 @@ def generate_val_dataset():
 
 if __name__ == '__main__':
     generate_val_dataset()
-
-

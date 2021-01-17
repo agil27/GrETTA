@@ -2,7 +2,6 @@ import numpy as np
 import torch
 from gretta.augmentations import *
 
-
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
 

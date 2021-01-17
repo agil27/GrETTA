@@ -58,7 +58,7 @@ def ZoomY(x, v):
     zoom = torch.ones((batch_size, 2), device=x.device)
     zoom[:, 1] = v
     return kornia.scale(x, zoom)
-  
+
 
 # enhance
 def Brightness(x, v):
@@ -88,20 +88,20 @@ def Sharpness(x, v):
 
 # augmentation list
 transform_list = [
-        (TranslateX, -20, 20),
-        (TranslateY, -20, 20),
-        (ZoomX, 0.7, 1.3),
-        (ZoomY, 0.7, 1.3),
-        (Brightness, -0.3, 0.3),
-        (Contrast, 0.8, 1.2),
-        (Sharpness, -0.3, 0.3),
-    ]
+    (TranslateX, -20, 20),
+    (TranslateY, -20, 20),
+    (ZoomX, 0.7, 1.3),
+    (ZoomY, 0.7, 1.3),
+    (Brightness, -0.3, 0.3),
+    (Contrast, 0.8, 1.2),
+    (Sharpness, -0.3, 0.3),
+]
 
 color_transforms = transform_list[4:]
 geometry_transforms = transform_list[:4]
 
 
-def apply_transform(img, levels): 
+def apply_transform(img, levels):
     '''
     :param img: (B, C, H, W) shaped tensor
     :param levels: (B, 4) shaped tensor
