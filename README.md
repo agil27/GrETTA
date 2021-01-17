@@ -26,4 +26,4 @@ Gradient-Estimation Test-time Augmentation(Unofficial)
    
    - Train guided gradient estimation with the same hyperparameters as vanilla gradient estimation:
    
-     `python imagenet.py -l 1e-8 -b 256 -m augmix -p efficientnet -e 90 -t vanilla -v corrupt`
+     `python imagenet.py -l 1e-8 -b 256 -m augmix -p efficientnet -e 90 -t guided -v corrupt`
