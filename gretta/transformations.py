@@ -5,7 +5,7 @@
 
 import kornia
 import torch
-from gretta.sharpness import sharpness
+import torch.nn.functional as F
 
 
 # the following transformation function share same paramters
@@ -81,9 +81,24 @@ def Gamma(x, v):
     return kornia.adjust_gamma(x, v)
 
 
+def sharpen(x, v):
+    kernel = torch.tensor([
+        [1, 1, 1],
+        [1, 5, 1],
+        [1, 1, 1]
+    ]).float().view(1, 1, 3, 3).repeat(3, 1, 1, 1)
+    kernel = kernel.to(x.device)
+    z = F.conv2d(x, kernel, bias=None, stride=1, groups=x.size(1))
+    m = torch.ones_like(z).to(x.device)
+    m = F.pad(m, [1, 1, 1, 1])
+    z = F.pad(z, [1, 1, 1, 1])
+    y = torch.where(m == 1, z, x)
+    return torch.stack([x[i] + (y[i] - x[i]) * v[i] for i in range(len(v))])
+
+
 # filter
-def Sharpness(x, v):
-    return sharpness(x, torch.abs(v))
+def Sharpen(x, v):
+    return sharpen(x, torch.abs(v))
 
 
 # augmentation list
@@ -92,16 +107,19 @@ transform_list = [
     (TranslateY, -20, 20),
     (ZoomX, 0.7, 1.3),
     (ZoomY, 0.7, 1.3),
+    # (ShearX, -15.0, 15.0),
+    # (ShearY, -15.0, 15.0),
+    # (Rotate, -20, 20),
     (Brightness, -0.3, 0.3),
-    (Contrast, 0.8, 1.2),
-    (Sharpness, -0.3, 0.3),
+    (Contrast, 0.5, 1.5),
+    (Sharpen, -0.3, 0.3),
 ]
 
 color_transforms = transform_list[4:]
 geometry_transforms = transform_list[:4]
 
 
-def apply_transform(img, levels):
+def apply_transform_sequentially(img, levels):
     '''
     :param img: (B, C, H, W) shaped tensor
     :param levels: (B, 4) shaped tensor
@@ -114,3 +132,19 @@ def apply_transform(img, levels):
         normalized_level = level * (upper - lower) + lower
         result = transform(result, normalized_level)
     return result
+
+
+apply_transform = apply_transform_sequentially
+
+
+def apply_transform_respectively(img, levels):
+    y = []
+    for i, (transform, lower, upper) in enumerate(transform_list):
+        level = levels[:, i]
+        normalized_level = level * (upper - lower) + lower
+        result = transform(img, normalized_level)
+        y.append(result)
+    return torch.cat(y)
+
+
+num_levels = len(transform_list)
