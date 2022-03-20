@@ -18,67 +18,67 @@ def TranslateX(x, v):
     batch_size = v.size(0)
     translation = torch.zeros((batch_size, 2), device=x.device)
     translation[:, 0] = v
-    return kornia.translate(x, translation)
+    return kornia.geometry.translate(x, translation)
 
 
 def TranslateY(x, v):
     batch_size = v.size(0)
     translation = torch.zeros((batch_size, 2), device=x.device)
     translation[:, 1] = v
-    return kornia.translate(x, translation)
+    return kornia.geometry.translate(x, translation)
 
 
 def ShearX(x, v):
     batch_size = v.size(0)
     shear = torch.zeros((batch_size, 2), device=x.device)
     shear[:, 0] = v
-    return kornia.shear(x, shear)
+    return kornia.geometry.shear(x, shear)
 
 
 def ShearY(x, v):
     batch_size = v.size(0)
     shear = torch.zeros((batch_size, 2), device=x.device)
     shear[:, 1] = v
-    return kornia.shear(x, shear)
+    return kornia.geometry.shear(x, shear)
 
 
 def Rotate(x, v):
-    return kornia.rotate(x, v)
+    return kornia.geometry.rotate(x, v)
 
 
 def ZoomX(x, v):
     batch_size = v.size(0)
     zoom = torch.ones((batch_size, 2), device=x.device)
     zoom[:, 0] = v
-    return kornia.scale(x, zoom)
+    return kornia.geometry.scale(x, zoom)
 
 
 def ZoomY(x, v):
     batch_size = v.size(0)
     zoom = torch.ones((batch_size, 2), device=x.device)
     zoom[:, 1] = v
-    return kornia.scale(x, zoom)
+    return kornia.geometry.scale(x, zoom)
 
 
 # enhance
 def Brightness(x, v):
-    return kornia.adjust_brightness(x, v)
+    return kornia.enhance.adjust_brightness(x, v)
 
 
 def Saturation(x, v):
-    return kornia.adjust_saturation(x, v)
+    return kornia.enhance.adjust_saturation(x, v)
 
 
 def Hue(x, v):
-    return kornia.adjust_hue(x, v)
+    return kornia.enhance.adjust_hue(x, v)
 
 
 def Contrast(x, v):
-    return kornia.adjust_contrast(x, v)
+    return kornia.enhance.adjust_contrast(x, v)
 
 
 def Gamma(x, v):
-    return kornia.adjust_gamma(x, v)
+    return kornia.enhance.adjust_gamma(x, v)
 
 
 def sharpen(x, v):
@@ -107,44 +107,43 @@ transform_list = [
     (TranslateY, -20, 20),
     (ZoomX, 0.7, 1.3),
     (ZoomY, 0.7, 1.3),
-    # (ShearX, -15.0, 15.0),
-    # (ShearY, -15.0, 15.0),
-    # (Rotate, -20, 20),
-    (Brightness, -0.3, 0.3),
+    # (Brightness, -0.3, 0.3),
+    (Gamma, 0, 2),
     (Contrast, 0.5, 1.5),
-    (Sharpen, -0.3, 0.3),
+    (Hue, -1, 1)
 ]
 
 color_transforms = transform_list[4:]
 geometry_transforms = transform_list[:4]
 
 
-def apply_transform_sequentially(img, levels):
+def get_tlist(transform):
+    if transform == 'color':
+        tlist = color_transforms
+    elif transform == 'geometry':
+        tlist = geometry_transforms
+    else:  # full
+        tlist = transform_list
+    return tlist
+
+
+def get_num_levels(transform):
+    return len(get_tlist(transform))
+
+
+def apply_transform(img, levels, transform_list=None):
     '''
     :param img: (B, C, H, W) shaped tensor
     :param levels: (B, 4) shaped tensor
     :param filters: image filter subset
     :return: augmented image batches
     '''
+    if transform_list is None:
+        transform_list = transform_list
     result = img
     for i, (transform, lower, upper) in enumerate(transform_list):
         level = levels[:, i]
+        level = torch.clamp(level, 0, 1)
         normalized_level = level * (upper - lower) + lower
         result = transform(result, normalized_level)
     return result
-
-
-apply_transform = apply_transform_sequentially
-
-
-def apply_transform_respectively(img, levels):
-    y = []
-    for i, (transform, lower, upper) in enumerate(transform_list):
-        level = levels[:, i]
-        normalized_level = level * (upper - lower) + lower
-        result = transform(img, normalized_level)
-        y.append(result)
-    return torch.cat(y)
-
-
-num_levels = len(transform_list)

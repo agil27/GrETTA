@@ -1,0 +1,3 @@
+from third_party.ResNeXt_DenseNet.models.densenet import densenet
+from third_party.ResNeXt_DenseNet.models.resnext import resnext29
+from third_party.WideResNet_pytorch.wideresnet import WideResNet
